@@ -33,6 +33,7 @@
 #include "clang/AST/Stmt.h"
 #include "clang/AST/StmtCXX.h"
 #include "clang/AST/StmtObjC.h"
+#include "clang/AST/StmtC.h"
 #include "clang/AST/StmtOpenMP.h"
 #include "clang/AST/TemplateBase.h"
 #include "clang/AST/TemplateName.h"
@@ -2187,6 +2188,8 @@ DEF_TRAVERSE_STMT(ObjCAtThrowStmt, {})
 DEF_TRAVERSE_STMT(ObjCAtTryStmt, {})
 DEF_TRAVERSE_STMT(ObjCForCollectionStmt, {})
 DEF_TRAVERSE_STMT(ObjCAutoreleasePoolStmt, {})
+
+DEF_TRAVERSE_STMT(CForEachStmt, {})
 
 DEF_TRAVERSE_STMT(CXXForRangeStmt, {
   if (!getDerived().shouldVisitImplicitCode()) {

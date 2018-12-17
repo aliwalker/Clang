@@ -373,6 +373,11 @@ void StmtProfiler::VisitObjCForCollectionStmt(const ObjCForCollectionStmt *S) {
   VisitStmt(S);
 }
 
+// NOTE: (by Yiyong.Li)
+void StmtProfiler::VisitCForEachStmt(const CForEachStmt *S) {
+  VisitStmt(S);
+}
+
 void StmtProfiler::VisitObjCAtCatchStmt(const ObjCAtCatchStmt *S) {
   VisitStmt(S);
   ID.AddBoolean(S->hasEllipsis());

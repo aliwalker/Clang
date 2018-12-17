@@ -26,6 +26,7 @@
 #include "clang/AST/Stmt.h"
 #include "clang/AST/StmtCXX.h"
 #include "clang/AST/StmtObjC.h"
+#include "clang/AST/StmtC.h"
 #include "clang/AST/StmtOpenMP.h"
 #include "clang/Sema/Designator.h"
 #include "clang/Sema/Lookup.h"
@@ -7367,6 +7368,15 @@ TreeTransform<Derived>::TransformObjCForCollectionStmt(
                                                    Collection.get(),
                                                    S->getRParenLoc(),
                                                    Body.get());
+}
+
+// FIXME: (by Yiyong.Li)
+// Right now this is simply a wrapper that does nothing since I haven't figured out
+// what `TreeTransform` does exactly when it comes to C. There's no concepts of "Objects" in C.
+template<typename Derived>
+StmtResult
+TreeTransform<Derived>::TransformCForEachStmt(CForEachStmt *S) {
+  return getSema().FinishCForEachStmt(S, S->getBody());
 }
 
 template <typename Derived>

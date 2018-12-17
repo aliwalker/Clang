@@ -926,6 +926,7 @@ PathDiagnosticRange
         case Stmt::SwitchStmtClass:
         case Stmt::BinaryConditionalOperatorClass:
         case Stmt::ConditionalOperatorClass:
+        case Stmt::CForEachStmtClass: /* NOTE: (by Yiyong.Li) */
         case Stmt::ObjCForCollectionStmtClass: {
           SourceLocation L = getValidSourceLocation(S, LAC);
           return SourceRange(L, L);

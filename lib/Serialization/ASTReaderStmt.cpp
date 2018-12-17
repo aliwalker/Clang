@@ -32,6 +32,7 @@
 #include "clang/AST/Stmt.h"
 #include "clang/AST/StmtCXX.h"
 #include "clang/AST/StmtObjC.h"
+#include "clang/AST/StmtC.h"
 #include "clang/AST/StmtOpenMP.h"
 #include "clang/AST/StmtVisitor.h"
 #include "clang/AST/TemplateBase.h"
@@ -1230,6 +1231,16 @@ void ASTStmtReader::VisitObjCForCollectionStmt(ObjCForCollectionStmt *S) {
   VisitStmt(S);
   S->setElement(Record.readSubStmt());
   S->setCollection(Record.readSubExpr());
+  S->setBody(Record.readSubStmt());
+  S->setForLoc(ReadSourceLocation());
+  S->setRParenLoc(ReadSourceLocation());
+}
+
+// NOTE: (by Yiyong.Li)
+void ASTStmtReader::VisitCForEachStmt(CForEachStmt *S) {
+  VisitStmt(S);
+  S->setElement(Record.readSubStmt());
+  S->setArray(Record.readSubExpr());
   S->setBody(Record.readSubStmt());
   S->setForLoc(ReadSourceLocation());
   S->setRParenLoc(ReadSourceLocation());

@@ -1560,6 +1560,8 @@ private:
   IdentifierInfo *ObjCTypeQuals[objc_NumQuals];
 
   bool isTokIdentifier_in() const;
+  // FIXME: (Yiyong.Li) This helper defines C's keyword "in".
+  bool isTokCIdentifier_in() const;
 
   ParsedType ParseObjCTypeName(ObjCDeclSpec &DS, DeclaratorContext Ctx,
                                ParsedAttributes *ParamAttrs);

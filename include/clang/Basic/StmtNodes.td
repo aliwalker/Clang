@@ -43,6 +43,9 @@ def ObjCAtSynchronizedStmt : Stmt;
 def ObjCForCollectionStmt : Stmt;
 def ObjCAutoreleasePoolStmt : Stmt;
 
+// C statements
+def CForEachStmt : Stmt;
+
 // C++ statements
 def CXXCatchStmt : Stmt;
 def CXXTryStmt : Stmt;

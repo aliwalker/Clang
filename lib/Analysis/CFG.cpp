@@ -26,6 +26,7 @@
 #include "clang/AST/Stmt.h"
 #include "clang/AST/StmtCXX.h"
 #include "clang/AST/StmtObjC.h"
+#include "clang/AST/StmtC.h"
 #include "clang/AST/StmtVisitor.h"
 #include "clang/AST/Type.h"
 #include "clang/Analysis/Support/BumpVector.h"
@@ -570,6 +571,7 @@ private:
   CFGBlock *VisitObjCAtTryStmt(ObjCAtTryStmt *S);
   CFGBlock *VisitObjCAutoreleasePoolStmt(ObjCAutoreleasePoolStmt *S);
   CFGBlock *VisitObjCForCollectionStmt(ObjCForCollectionStmt *S);
+  CFGBlock *VisitCForEachStmt(CForEachStmt *S);
   CFGBlock *VisitObjCMessageExpr(ObjCMessageExpr *E, AddStmtChoice asc);
   CFGBlock *VisitPseudoObjectExpr(PseudoObjectExpr *E);
   CFGBlock *VisitReturnStmt(Stmt *S);
@@ -3405,6 +3407,12 @@ CFGBlock *CFGBuilder::VisitObjCForCollectionStmt(ObjCForCollectionStmt *S) {
   // Now create a prologue block to contain the collection expression.
   Block = createBlock();
   return addStmt(S->getCollection());
+}
+
+// TODO: (by Yiyong.Li)
+// Add code generation phase code.
+CFGBlock *CFGBuilder::VisitCForEachStmt(CForEachStmt *S) {
+  return nullptr;
 }
 
 CFGBlock *CFGBuilder::VisitObjCAutoreleasePoolStmt(ObjCAutoreleasePoolStmt *S) {

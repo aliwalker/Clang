@@ -30,6 +30,7 @@
 #include "clang/AST/Stmt.h"
 #include "clang/AST/StmtCXX.h"
 #include "clang/AST/StmtObjC.h"
+#include "clang/AST/StmtC.h"
 #include "clang/AST/StmtOpenMP.h"
 #include "clang/AST/StmtVisitor.h"
 #include "clang/AST/TemplateBase.h"
@@ -346,6 +347,22 @@ void StmtPrinter::VisitObjCForCollectionStmt(ObjCForCollectionStmt *Node) {
   OS << ")";
   PrintControlledStmt(Node->getBody());
 }
+
+// NOTE: (by Yiyong.Li)
+void StmtPrinter::VisitCForEachStmt(CForEachStmt *Node) {
+  Indent() << "for (";
+  if (auto *DS = dyn_cast<DeclStmt>(Node->getElement()))
+    PrintRawDeclStmt(DS);
+  else
+    // FIXME: (by Yiyong.Li)
+    // Currently I haven't implement this yet. Refer to `ParseForStatement`.
+    PrintExpr(cast<Expr>(Node->getElement()));
+  OS << " in ";
+  PrintExpr(Node->getArray());
+  OS << ")";
+  PrintControlledStmt(Node->getBody());
+}
+
 
 void StmtPrinter::VisitCXXForRangeStmt(CXXForRangeStmt *Node) {
   Indent() << "for (";

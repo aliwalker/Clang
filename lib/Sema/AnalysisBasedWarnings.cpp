@@ -22,6 +22,7 @@
 #include "clang/AST/ParentMap.h"
 #include "clang/AST/RecursiveASTVisitor.h"
 #include "clang/AST/StmtCXX.h"
+#include "clang/AST/StmtC.h"
 #include "clang/AST/StmtObjC.h"
 #include "clang/AST/StmtVisitor.h"
 #include "clang/Analysis/Analyses/CFGReachabilityAnalysis.h"
@@ -1301,11 +1302,14 @@ static bool isInLoop(const ASTContext &Ctx, const ParentMap &PM,
                      const Stmt *S) {
   assert(S);
 
+  // NOTE: (by Yiyong.LI)
+  // Haven't really figured out yet.
   do {
     switch (S->getStmtClass()) {
     case Stmt::ForStmtClass:
     case Stmt::WhileStmtClass:
     case Stmt::CXXForRangeStmtClass:
+    case Stmt::CForEachStmtClass:
     case Stmt::ObjCForCollectionStmtClass:
       return true;
     case Stmt::DoStmtClass: {

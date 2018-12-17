@@ -182,6 +182,10 @@ void CodeGenFunction::EmitStmt(const Stmt *S, ArrayRef<const Attr *> Attrs) {
     EmitObjCAutoreleasePoolStmt(cast<ObjCAutoreleasePoolStmt>(*S));
     break;
 
+  case Stmt::CForEachStmtClass:
+    EmitCForEachStmt(cast<CForEachStmt>(*S));
+    break;
+
   case Stmt::CXXTryStmtClass:
     EmitCXXTryStmt(cast<CXXTryStmt>(*S));
     break;
@@ -921,6 +925,100 @@ void CodeGenFunction::EmitForStmt(const ForStmt &S,
 
   // Emit the fall-through block.
   EmitBlock(LoopExit.getBlock(), true);
+}
+
+/// This little helper function helps to create the `free`
+/// function for `EmitCForEachStmt` (if necessary).
+static llvm::Function *getFreeFunc(CodeGenModule &CGM) {
+  if (auto *FreeFn = CGM.getModule().getFunction("free")) {
+    return FreeFn;
+  }
+  llvm::Module &TheModule = CGM.getModule();
+  llvm::LLVMContext &TheContext = CGM.getLLVMContext();
+  llvm::Function *FreeFn = nullptr;
+
+  std::vector<llvm::Type *> VoidPtrType(1, llvm::Type::getInt8PtrTy(TheContext));
+  llvm::FunctionType *FT =
+      llvm::FunctionType::get(llvm::Type::getVoidTy(TheContext), VoidPtrType, false);
+
+  FreeFn =
+      llvm::Function::Create(FT, llvm::Function::ExternalLinkage, "free", &TheModule);
+
+  return FreeFn;
+}
+
+void CodeGenFunction::EmitCForEachStmt(const CForEachStmt &S) {
+  // Setting up a lexical scope for later cleaning up VarDec in this scope.
+  LexicalScope ForScope(*this, S.getSourceRange());
+
+  AutoVarEmission elemVar = AutoVarEmission::invalid();
+  llvm::Type *elemMemType = nullptr;
+  if (const DeclStmt *SD = dyn_cast<DeclStmt>(S.getElement())) {
+    elemVar = EmitAutoVarAlloca(*cast<VarDecl>(SD->getSingleDecl()));
+    QualType elemType = cast<VarDecl>(SD->getSingleDecl())->getType();
+    elemMemType = ConvertTypeForMem(elemType);
+  }
+
+  llvm::Function *NextFn = CGM.getModule().getFunction("__C_iter_next_");
+  llvm::Function *FreeFn = getFreeFunc(CGM);
+
+  JumpDest ForExit = getJumpDestInCurrentScope("for.exit");
+  JumpDest ForBody = getJumpDestInCurrentScope("for.body");
+  JumpDest ForClean = getJumpDestInCurrentScope("for.clean");
+  JumpDest ForNext = getJumpDestInCurrentScope("for.next");
+
+  // Emit Iterable first in case it is a function call.
+  // Also store it on the stack for later release.
+  const RValue iterV = EmitAnyExprToTemp(S.getArray());
+  auto VoidPtrMemType = llvm::Type::getInt8PtrTy(CGM.getLLVMContext());
+  auto NullPtrMemType = llvm::ConstantPointerNull::get(Builder.getInt8PtrTy());
+  Address iterAddr = CreateDefaultAlignTempAlloca(VoidPtrMemType, "__iter");
+  Builder.CreateStore(iterV.getScalarVal(), iterAddr);
+
+  // Emit for.next block first. This block contains the conditional branch statement.
+  EmitBlock(ForNext.getBlock());
+
+  const SourceRange &R = S.getSourceRange();
+  LoopStack.push(ForNext.getBlock(),
+                 SourceLocToDebugLoc(R.getBegin()),
+                 SourceLocToDebugLoc(R.getEnd()));
+  // Store the blocks to use for break and continue.
+  BreakContinueStack.push_back(BreakContinue(ForClean, ForNext));
+  std::vector<llvm::Value*> Args;
+  Args.push_back(iterV.getScalarVal());
+
+  // Implicitly call our __C_iter_next_ under the hood.
+  // Also note that we need to convert it to `elemMemType`.
+  llvm::Value *nextV = Builder.CreateCall(NextFn, Args, "next");
+  llvm::Value *nextTypedV = Builder.CreateBitCast(nextV, elemMemType);
+
+  // Make it available for user defined elem.
+  Builder.CreateStore(nextTypedV, elemVar.getAllocatedAddress());
+  llvm::Value *cmpV = Builder.CreateICmpNE(nextV, NullPtrMemType, "cmp");
+  Builder.CreateCondBr(cmpV, ForBody.getBlock(), ForClean.getBlock());
+
+  {
+    // Create a separate cleanup scope for the body, in case it is not
+    // a compound statement.
+    EmitBlock(ForBody.getBlock());
+    RunCleanupsScope BodyScope(*this);
+    EmitStmt(S.getBody());
+    // Branch back to for.next.
+    EmitBranch(ForNext.getBlock());
+  }
+
+  // Free the iterator.
+  EmitBlock(ForClean.getBlock());
+  Args.clear();
+  Args.push_back(Builder.CreateLoad(iterAddr, "__iter"));
+  Builder.CreateCall(FreeFn, Args);
+  Builder.CreateBr(ForExit.getBlock());
+
+  BreakContinueStack.pop_back();
+  LoopStack.pop();
+
+  // Emit the fall-through block & set the insertion point there.
+  EmitBlock(ForExit.getBlock(), true);
 }
 
 void

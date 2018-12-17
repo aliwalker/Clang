@@ -11,6 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <iostream>
+
 #include "clang/Sema/SemaInternal.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/ASTDiagnostic.h"
@@ -24,6 +26,7 @@
 #include "clang/AST/RecursiveASTVisitor.h"
 #include "clang/AST/StmtCXX.h"
 #include "clang/AST/StmtObjC.h"
+#include "clang/AST/StmtC.h"
 #include "clang/AST/TypeLoc.h"
 #include "clang/AST/TypeOrdering.h"
 #include "clang/Basic/TargetInfo.h"
@@ -55,7 +58,7 @@ StmtResult Sema::ActOnExprStmt(ExprResult FE) {
   // void expression for its side effects.  Conversion to void allows any
   // operand, even incomplete types.
 
-  // Same thing in for stmt first clause (when expr) and third clause.
+  // Same thing in for sFtmt first clause (when expr) and third clause.
   return StmtResult(FE.getAs<Stmt>());
 }
 
@@ -1886,6 +1889,32 @@ Sema::CheckObjCForCollectionOperand(SourceLocation forLoc, Expr *collection) {
   return collection;
 }
 
+ExprResult
+Sema::CheckCForEachArrOperand(SourceLocation forLoc, Expr *Arr) {
+  if (!Arr)
+    return ExprError();
+
+  // Correct any delayed typos in the parsed `Arr` expression if any.
+  ExprResult result = CorrectDelayedTyposInExpr(Arr);
+  if (!result.isUsable())
+    return ExprError();
+  Arr = result.get();
+
+  // FIXME: (by Yiyong.Li)
+  // Been thinking for a while, we should've made it an Iterable struct type.
+  // Also fix the error diagnostic.
+  if (!Arr->getType()->isPointerType()) {
+    return ExprError();
+  }
+
+  result = DefaultFunctionArrayLvalueConversion(Arr);
+  if (result.isInvalid())
+    return ExprError();
+  Arr = result.get();
+
+  return Arr;
+}
+
 StmtResult
 Sema::ActOnObjCForCollectionStmt(SourceLocation ForLoc,
                                  Stmt *First, Expr *collection,
@@ -1965,6 +1994,39 @@ Sema::ActOnObjCForCollectionStmt(SourceLocation ForLoc,
 
   return new (Context) ObjCForCollectionStmt(First, CollectionExprResult.get(),
                                              nullptr, ForLoc, RParenLoc);
+}
+
+StmtResult
+Sema::ActOnCForEachSmt(SourceLocation ForLoc,
+                      Stmt *Elem, Expr *Arr,
+                      SourceLocation RParenLoc) {
+  // Check the iterable struct type.
+  ExprResult ArrExprResult = CheckCForEachArrOperand(ForLoc, Arr);
+
+  // Check the Elem. Currently we only support declaration here.
+  DeclStmt *DS = dyn_cast<DeclStmt>(Elem);
+  if (!DS || !DS->isSingleDecl())
+    return StmtError(Diag(DS->getBeginLoc(),
+                        diag::err_toomany_element_decls));
+
+  VarDecl *D = dyn_cast<VarDecl>(DS->getSingleDecl());
+  if (!D || D->isInvalidDecl())
+    return StmtError();
+
+  if (!D->hasLocalStorage())
+    return StmtError(Diag(D->getLocation(),
+                        diag::err_non_local_variable_decl_in_for));
+
+  if (!D->getType().getTypePtr()->isPointerType())
+    return StmtError(Diag(D->getLocation(),
+                        diag::err_type_defined_in_for_range));
+
+  if (ArrExprResult.isInvalid())
+    return StmtError(Diag(ForLoc, diag::err_for_each_arr_expr_type)
+                        << Arr->getType() << Arr->getSourceRange());
+
+  return new (Context) CForEachStmt(Elem, ArrExprResult.get(),
+                                    nullptr, ForLoc, RParenLoc);
 }
 
 /// Finish building a variable declaration for a for-range statement.
@@ -2669,6 +2731,15 @@ StmtResult Sema::FinishObjCForCollectionStmt(Stmt *S, Stmt *B) {
     return StmtError();
   ObjCForCollectionStmt * ForStmt = cast<ObjCForCollectionStmt>(S);
 
+  ForStmt->setBody(B);
+  return S;
+}
+
+StmtResult Sema::FinishCForEachStmt(Stmt *S, Stmt *B) {
+  if (!S || !B)
+    return StmtError();
+  
+  CForEachStmt *ForStmt = cast<CForEachStmt>(S);
   ForStmt->setBody(B);
   return S;
 }

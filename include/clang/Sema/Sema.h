@@ -3767,10 +3767,15 @@ public:
                           Stmt *Body);
   ExprResult CheckObjCForCollectionOperand(SourceLocation forLoc,
                                            Expr *collection);
+  ExprResult CheckCForEachArrOperand(SourceLocation forLoc, Expr *Arr);
   StmtResult ActOnObjCForCollectionStmt(SourceLocation ForColLoc,
                                         Stmt *First, Expr *collection,
                                         SourceLocation RParenLoc);
+  StmtResult ActOnCForEachSmt(SourceLocation ForLoc, 
+                              Stmt *Elem, Expr *Arr,
+                              SourceLocation RParenLoc);
   StmtResult FinishObjCForCollectionStmt(Stmt *ForCollection, Stmt *Body);
+  StmtResult FinishCForEachStmt(Stmt *ForEach, Stmt *Body);
 
   enum BuildForRangeKind {
     /// Initial building of a for-range statement.

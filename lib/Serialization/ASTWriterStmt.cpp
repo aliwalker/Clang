@@ -1191,6 +1191,17 @@ void ASTStmtWriter::VisitObjCForCollectionStmt(ObjCForCollectionStmt *S) {
   Code = serialization::STMT_OBJC_FOR_COLLECTION;
 }
 
+// FIXME: (by Yiyong.Li)
+// I don't understand this class right now.
+void ASTStmtWriter::VisitCForEachStmt(CForEachStmt *S) {
+  VisitStmt(S);
+  Record.AddStmt(S->getElement());
+  Record.AddStmt(S->getArray());
+  Record.AddStmt(S->getBody());
+  Record.AddSourceLocation(S->getForLoc());
+  Record.AddSourceLocation(S->getRParenLoc());
+}
+
 void ASTStmtWriter::VisitObjCAtCatchStmt(ObjCAtCatchStmt *S) {
   Record.AddStmt(S->getCatchBody());
   Record.AddDeclRef(S->getCatchParamDecl());

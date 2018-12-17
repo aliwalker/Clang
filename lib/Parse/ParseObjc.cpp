@@ -22,6 +22,8 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringExtras.h"
 
+#include <cstring>
+
 using namespace clang;
 
 /// Skips attributes after an Objective-C @ directive. Emits a diagnostic.
@@ -1095,6 +1097,15 @@ IdentifierInfo *Parser::ParseObjCSelectorPiece(SourceLocation &SelectorLoc) {
     SelectorLoc = ConsumeToken();
     return II;
   }
+}
+
+bool Parser::isTokCIdentifier_in() const {
+  const char *tokString = Tok.getIdentifierInfo()->getNameStart();
+
+  return (getLangOpts().C99 && Tok.is(tok::identifier) &&
+          strcmp(tokString, "in") == 0);
+  // return (getLangOpts().C99 && Tok.is(tok::identifier) &&
+  //         Tok.getText().Ptr);
 }
 
 ///  objc-for-collection-in: 'in'

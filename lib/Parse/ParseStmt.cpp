@@ -12,6 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <iostream>
+
 #include "clang/AST/PrettyDeclStackTrace.h"
 #include "clang/Basic/Attributes.h"
 #include "clang/Basic/PrettyStackTrace.h"
@@ -21,6 +23,8 @@
 #include "clang/Sema/DeclSpec.h"
 #include "clang/Sema/Scope.h"
 #include "clang/Sema/TypoCorrection.h"
+
+#include <iostream>
 using namespace clang;
 
 //===----------------------------------------------------------------------===//
@@ -1602,6 +1606,7 @@ StmtResult Parser::ParseForStatement(SourceLocation *TrailingElseLoc) {
   ExprResult Value;
 
   bool ForEach = false;
+  bool CForEach = false;
   StmtResult FirstPart;
   Sema::ConditionResult SecondPart;
   ExprResult Collection;
@@ -1674,7 +1679,7 @@ StmtResult Parser::ParseForStatement(SourceLocation *TrailingElseLoc) {
       FirstPart = StmtResult();
     } else if (Tok.is(tok::semi)) {  // for (int x = 4;
       ConsumeToken();
-    } else if ((ForEach = isTokIdentifier_in())) {
+    } else if ((ForEach = (isTokIdentifier_in()) || (CForEach = isTokCIdentifier_in()))) {
       Actions.ActOnForEachDeclStmt(DG);
       // ObjC: for (id x in expr)
       ConsumeToken(); // consume 'in'
@@ -1705,6 +1710,7 @@ StmtResult Parser::ParseForStatement(SourceLocation *TrailingElseLoc) {
     if (Tok.is(tok::semi)) {
       ConsumeToken();
     } else if (ForEach) {
+      // TODO: Fix C's for each statement.
       ConsumeToken(); // consume 'in'
 
       if (Tok.is(tok::code_completion)) {
@@ -1734,7 +1740,7 @@ StmtResult Parser::ParseForStatement(SourceLocation *TrailingElseLoc) {
 
   // Parse the second part of the for specifier.
   getCurScope()->AddFlags(Scope::BreakScope | Scope::ContinueScope);
-  if (!ForEach && !ForRangeInfo.ParsedForRangeDecl() &&
+  if (!ForEach && !CForEach && !ForRangeInfo.ParsedForRangeDecl() &&
       !SecondPart.isInvalid()) {
     // Parse the second part of the for specifier.
     if (Tok.is(tok::semi)) {  // for (...;;
@@ -1778,7 +1784,7 @@ StmtResult Parser::ParseForStatement(SourceLocation *TrailingElseLoc) {
   }
 
   // Parse the third part of the for statement.
-  if (!ForEach && !ForRangeInfo.ParsedForRangeDecl()) {
+  if (!ForEach && !CForEach && !ForRangeInfo.ParsedForRangeDecl()) {
     if (Tok.isNot(tok::semi)) {
       if (!SecondPart.isInvalid())
         Diag(Tok, diag::err_expected_semi_for);
@@ -1824,11 +1830,18 @@ StmtResult Parser::ParseForStatement(SourceLocation *TrailingElseLoc) {
 
   // Similarly, we need to do the semantic analysis for a for-range
   // statement immediately in order to close over temporaries correctly.
-  } else if (ForEach) {
-    ForEachStmt = Actions.ActOnObjCForCollectionStmt(ForLoc,
-                                                     FirstPart.get(),
-                                                     Collection.get(),
-                                                     T.getCloseLocation());
+  } else if (CForEach) {
+    // NOTE: (by Yiyong.Li)
+    // This is the entry point for constructing C's for in AST node.
+    ForEachStmt = Actions.ActOnCForEachSmt(ForLoc,
+                                         FirstPart.get(),
+                                         Collection.get(),
+                                         T.getCloseLocation());
+  } else if (ForEach) {    
+      ForEachStmt = Actions.ActOnObjCForCollectionStmt(ForLoc,
+                                                       FirstPart.get(),
+                                                       Collection.get(),
+                                                       T.getCloseLocation());
   } else {
     // In OpenMP loop region loop control variable must be captured and be
     // private. Perform analysis of first part (if any).
@@ -1869,6 +1882,9 @@ StmtResult Parser::ParseForStatement(SourceLocation *TrailingElseLoc) {
 
   if (Body.isInvalid())
     return StmtError();
+
+  if (CForEach)
+    return Actions.FinishCForEachStmt(ForEachStmt.get(), Body.get());
 
   if (ForEach)
    return Actions.FinishObjCForCollectionStmt(ForEachStmt.get(),

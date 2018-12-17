@@ -17,6 +17,7 @@
 #include "clang/AST/Expr.h"
 #include "clang/AST/ExprCXX.h"
 #include "clang/AST/StmtCXX.h"
+#include "clang/AST/StmtC.h"
 #include "clang/AST/StmtObjC.h"
 #include "llvm/ADT/BitVector.h"
 using namespace clang;

@@ -8395,6 +8395,8 @@ def err_selector_element_const_type : Error<
   "selector element of type %0 cannot be a constant l-value expression">;
 def err_collection_expr_type : Error<
   "the type %0 is not a pointer to a fast-enumerable object">;
+def err_for_each_arr_expr_type : Error<
+  "the type %0 is not a valid pointer type returned by CreateIterable.">;
 def warn_collection_expr_type : Warning<
   "collection expression type %0 may not respond to %1">;
 
